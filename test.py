@@ -43,4 +43,5 @@ def test_members():
     f = gzip2.GzipFile(fileobj=buf)
     assert f.read_member() == "hello"
     assert f.read_member() == "world"
+    assert f.read_member() is None
     
