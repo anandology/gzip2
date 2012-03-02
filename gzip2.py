@@ -50,7 +50,7 @@ class GzipFile(BaseGzipFile):
                                          0)
         self._new_member = True
         
-    def start_member(self):
+    def _start_member(self):
         """Starts writing a new member if required.
         """
         if self._new_member:
@@ -59,7 +59,7 @@ class GzipFile(BaseGzipFile):
             self._new_member = False
         
     def write(self, data):
-        self.start_member()
+        self._start_member()
         BaseGzipFile.write(self, data)
         
     def close(self):
