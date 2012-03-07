@@ -11,8 +11,13 @@ http://www.gzip.org/zlib/rfc-gzip.html
 
 This library provides support for creating and reading multi-member gzip files.
 """
-from gzip import WRITE, write32u, GzipFile as BaseGzipFile
+from gzip import WRITE, READ, write32u, GzipFile as BaseGzipFile
 import zlib
+
+def open(filename, mode="rb", compresslevel=9):
+    """Shorthand for GzipFile(filename, mode, compresslevel).
+    """
+    return GzipFile(filename, mode, compresslevel)
 
 class GzipFile(BaseGzipFile):
     """GzipFile with support for multi-member gzip files.
@@ -30,6 +35,9 @@ class GzipFile(BaseGzipFile):
             # The BaseGzipFile constructor already wrote the header for new 
             # member, so marking as False.
             self._new_member = False
+            
+        # When _member_lock is True, only one member in gzip file is read
+        self._member_lock = False
     
     def close_member(self):
         """Closes the current member being written.
@@ -76,27 +84,38 @@ class GzipFile(BaseGzipFile):
         if self.myfileobj:
             self.myfileobj.close()
             self.myfileobj = None
-                
+            
+    def _read(self, size):
+        # Treat end of member as end of file when _member_lock flag is set
+        if self._member_lock and self._new_member:
+            raise EOFError()
+        else:
+            return BaseGzipFile._read(self, size)
+            
     def read_member(self):
-        """Reads one gzip chunk from the fileobj and returns the uncompresed text.
+        """Returns a file-like object to read one member from the gzip file.
         """
-        try:
-            self._read(1024)
-            while self._new_member == False:
-                self._read(1024)
-        except EOFError:
-            return None
+        if self._member_lock is False:
+            self._member_lock = True
+
+        if self._new_member:
+            try:
+                # Read one byte to move to the next member
+                BaseGzipFile._read(self, 1)
+                assert self._new_member is False
+            except EOFError:
+                return None
         
-        data = self.extrabuf
-            
-        self.offset += self.extrasize
-        self.extrasize = 0
-        self.extrabuf = ""
-            
-        return data
-                
-    def write_member(self, text):
-        """Writes the given text as one gzip chunk.
+        return self
+
+    def write_member(self, data):
+        """Writes the given data as one gzip member.
+        
+        The data can be a string, an iterator that gives strings or a file-like object.
         """
-        self.write(text)
+        if isinstance(data, basestring):
+            self.write(data)
+        else:
+            for text in data:
+                self.write(text)
         self.close_member()

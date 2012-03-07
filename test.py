@@ -41,7 +41,20 @@ def test_members():
 
     buf.seek(0)
     f = gzip2.GzipFile(fileobj=buf)
-    assert f.read_member() == "hello"
-    assert f.read_member() == "world"
+    assert f.read_member().read() == "hello"
+    assert f.read_member().read() == "world"
     assert f.read_member() is None
     
+def test_write2():
+    buf = StringIO()
+    buf = StringIO()
+    f = gzip2.GzipFile(fileobj=buf, mode="w")
+    f.write_member(["hello"])
+    f.write_member(iter(["world"]))
+    f.close()
+
+    buf.seek(0)
+    f = gzip2.GzipFile(fileobj=buf)
+    assert f.read_member().read() == "hello"
+    assert f.read_member().read() == "world"
+    assert f.read_member() is None
